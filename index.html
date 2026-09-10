@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1F4A38">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GBS 아이스브레이킹">
+<title>GBS 아이스브레이킹</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F4A38'/%3E%3Crect x='17' y='12' width='30' height='40' rx='6' fill='%23F5C84C' transform='rotate(-8 32 32)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --felt:#1F4A38; --felt-deep:#173A2C;
+  --paper:#FCFCF8; --paper-2:#E3EAE4;
+  --ink:#1D2A24; --muted:#5E6F66;
+  --hl:#F5C84C; --coral:#EE7B5B; --sage:#A9CBB9;
+  --line:rgba(169,203,185,.28);
+  --serif:"Gowun Batang","Nanum Myeongjo","AppleMyungjo",serif;
+  --sans:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--felt);color:#F3F7F4;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+button,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--hl);outline-offset:3px}
+[hidden]{display:none!important}
+
+.app{max-width:480px;margin:0 auto;padding:20px 18px calc(92px + env(safe-area-inset-bottom));
+  min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+.top{margin-bottom:14px}
+.top h1{font-family:var(--serif);font-weight:700;font-size:21px}
+.view{flex:1;display:flex;flex-direction:column;gap:16px}
+.hint{font-size:14px;color:var(--sage);line-height:1.55}
+
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:2px 18px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--sage)}
+.chip[aria-pressed="true"]{background:var(--hl);border-color:var(--hl);color:var(--ink);font-weight:600}
+
+/* 카드 더미 */
+.deck{position:relative;flex:1;min-height:300px;perspective:1200px;margin:4px 4px 6px}
+.deck::before,.deck::after{content:"";position:absolute;inset:0;border-radius:22px;background:var(--paper-2)}
+.deck::before{transform:rotate(-2.4deg) translate(-4px,7px);opacity:.45}
+.deck::after{transform:rotate(1.7deg) translate(5px,3px);opacity:.75}
+.card{position:absolute;inset:0;z-index:1;background:var(--paper);color:var(--ink);border-radius:22px;
+  padding:54px 24px 54px;display:flex;flex-direction:column;justify-content:center;
+  box-shadow:0 16px 34px rgba(6,24,17,.38)}
+.corner{position:absolute;top:20px;left:24px;font-size:13px;color:var(--muted)}
+.foot{position:absolute;left:24px;right:24px;bottom:20px;font-size:13px;color:var(--muted)}
+.q-text{font-family:var(--serif);font-weight:700;font-size:clamp(22px,6.4vw,27px);line-height:1.62;word-break:keep-all}
+.q-text.idle{color:var(--muted);font-weight:400;font-size:21px}
+.turn{animation:turn .5s ease-in-out}
+@keyframes turn{0%{transform:rotateY(0)}45%{transform:rotateY(90deg)}55%{transform:rotateY(-90deg)}100%{transform:rotateY(0)}}
+
+.bar{display:flex;align-items:center;gap:10px}
+.count{font-size:13px;color:var(--sage);min-width:78px;line-height:1.4}
+.primary{flex:1;font-size:17px;font-weight:700;padding:15px;border-radius:16px;border:none;background:var(--hl);color:var(--ink)}
+.ghost{font-size:15px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:transparent;color:#F3F7F4;white-space:nowrap}
+.primary:active,.ghost:active,.side:active{transform:translateY(1px)}
+.subrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.hist{flex:1;min-width:0}
+.hist summary{font-size:14px;color:var(--sage);list-style:none;cursor:pointer}
+.hist summary::-webkit-details-marker{display:none}
+.hist ol{margin:10px 0 0 18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.55}
+.link{background:none;border:none;color:var(--hl);font-size:14px;padding:0;white-space:nowrap}
+
+/* 밸런스 게임 */
+.vs{flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center}
+.side{flex:1;min-height:128px;border:none;border-radius:22px;padding:20px 20px 20px 22px;text-align:left;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;transition:box-shadow .2s}
+.side.a{background:var(--paper);color:var(--ink)}
+.side.b{background:var(--coral);color:#2A140C}
+.side.lead{box-shadow:0 0 0 3px var(--hl)}
+.side-text{font-family:var(--serif);font-weight:700;font-size:clamp(20px,5.6vw,24px);line-height:1.5;word-break:keep-all}
+.tally{flex:none;width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:700;background:rgba(29,42,36,.09)}
+.pop .tally{animation:pop .25s ease-out}
+@keyframes pop{50%{transform:scale(1.22)}}
+.vs-mark{align-self:center;font-family:var(--serif);font-size:16px;color:var(--sage)}
+
+/* 초성 퀴즈 */
+.initials{font-family:var(--serif);font-weight:700;font-size:clamp(44px,14vw,66px);letter-spacing:.14em;text-align:center;line-height:1.3;word-break:keep-all}
+.clue{margin-top:20px;text-align:center;font-size:16px;color:var(--muted);line-height:1.6;word-break:keep-all}
+.answer{margin-top:14px;align-self:center;font-family:var(--serif);font-size:25px;font-weight:700;padding:0 6px;
+  background:linear-gradient(transparent 58%,rgba(245,200,76,.65) 58%)}
+.bar .ghost.small{padding:14px 14px}
+
+/* 진행 도구 */
+.tool{display:flex;flex-direction:column;gap:12px}
+.tool + .tool{border-top:1px solid var(--line);padding-top:20px;margin-top:6px}
+.tool h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.slip{background:var(--paper);color:var(--ink);border-radius:18px;padding:22px;min-height:124px;display:flex;flex-direction:column;justify-content:center}
+.slip .big{font-family:var(--serif);font-size:21px;font-weight:700;line-height:1.55;word-break:keep-all}
+.slip .big.idle{color:var(--muted);font-weight:400;font-size:18px}
+.slip .dir{margin-top:8px;font-size:14px;color:var(--muted)}
+.clock{font-size:76px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1;padding:6px 0;letter-spacing:-.02em}
+.clock.done{color:var(--hl);animation:blink 1s 3}
+@keyframes blink{50%{opacity:.35}}
+
+/* 하단 탭 */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--felt-deep);border-top:1px solid var(--line);
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+.tabs-inner{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tab{background:none;border:none;color:var(--sage);font-size:14px;padding:11px 2px;border-radius:12px}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--hl);font-weight:700}
+
+/* 내 질문 시트 */
+.sheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.sheet-bg{position:absolute;inset:0;background:rgba(5,18,12,.6)}
+.panel{position:relative;width:100%;max-width:480px;max-height:86vh;overflow:auto;background:var(--paper);color:var(--ink);
+  border-radius:24px 24px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.panel h2{font-family:var(--serif);font-size:20px}
+.panel label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.panel select,.panel textarea{border:1px solid #C8D6CD;border-radius:12px;padding:11px 12px;background:#fff;color:var(--ink);font-size:16px}
+.panel textarea{resize:vertical;line-height:1.5}
+.panel .primary{flex:none}
+.msg{font-size:13px;color:var(--muted);min-height:1em}
+.panel h3{font-size:15px;margin-top:8px}
+.mine{list-style:none;display:flex;flex-direction:column;gap:8px}
+.mine li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;background:#EEF3EF;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5}
+.mine li.empty{background:none;padding:0;color:var(--muted);font-size:13px}
+.mine small{display:block;color:var(--muted);font-size:12px}
+.mine button{flex:none;background:none;border:none;color:#A4462A;font-size:13px;padding:2px 4px}
+.panel .ghost{color:var(--ink);border-color:#C8D6CD;align-self:center;margin-top:6px}
+
+@media (prefers-reduced-motion:reduce){.turn,.pop .tally,.clock.done{animation:none}}
+</style>
+</head>
+<body>
+
+<main class="app">
+  <header class="top"><h1>GBS 아이스브레이킹</h1></header>
+
+  <!-- 나눔 질문 -->
+  <section class="view" id="v-q">
+    <div class="chips" id="qChips" role="group" aria-label="질문 주제"></div>
+    <div class="deck">
+      <article class="card" id="qCard" aria-live="polite">
+        <p class="corner" id="qCat"></p>
+        <p class="q-text idle" id="qText">오늘은 어떤 이야기로 모임을 열까요?</p>
+        <p class="foot" id="qNote" hidden>대답하기 어려우면 넘어가도 괜찮아요</p>
+      </article>
+    </div>
+    <div class="bar">
+      <p class="count" id="qCount"></p>
+      <button class="primary" id="qDraw">질문 뽑기</button>
+    </div>
+    <div class="subrow">
+      <details class="hist">
+        <summary>오늘 나눈 질문 <span id="histN">0</span>개</summary>
+        <ol id="histList"></ol>
+      </details>
+      <button class="link" id="openSheet">내 질문 추가</button>
+    </div>
+  </section>
+
+  <!-- 밸런스 게임 -->
+  <section class="view" id="v-b" hidden>
+    <p class="hint">둘 중 하나를 골라 손을 들어요. 누른 쪽에 한 명씩 더해집니다.</p>
+    <div class="vs">
+      <button class="side a" id="bA"><span class="side-text" id="bAText"></span><span class="tally" id="bACount" aria-live="polite">0</span></button>
+      <span class="vs-mark">vs</span>
+      <button class="side b" id="bB"><span class="side-text" id="bBText"></span><span class="tally" id="bBCount" aria-live="polite">0</span></button>
+    </div>
+    <div class="bar">
+      <button class="ghost" id="bReset">다시 세기</button>
+      <button class="primary" id="bNext">다음 문제</button>
+    </div>
+  </section>
+
+  <!-- 초성 퀴즈 -->
+  <section class="view" id="v-c" hidden>
+    <div class="chips" id="cChips" role="group" aria-label="퀴즈 종류"></div>
+    <div class="deck">
+      <article class="card" id="cCard" aria-live="polite">
+        <p class="corner" id="cCat"></p>
+        <p class="initials" id="cInit"></p>
+        <p class="clue" id="cHint" hidden></p>
+        <p class="answer" id="cAns" hidden></p>
+      </article>
+    </div>
+    <div class="bar">
+      <button class="ghost small" id="cHintBtn">힌트</button>
+      <button class="ghost small" id="cAnsBtn">정답</button>
+      <button class="primary" id="cNext">다음 문제</button>
+    </div>
+  </section>
+
+  <!-- 진행 도구 -->
+  <section class="view" id="v-t" hidden>
+    <div class="tool">
+      <h2>누구부터 시작할까요?</h2>
+      <div class="slip" id="oSlip" aria-live="polite">
+        <p class="big idle" id="oText">버튼을 누르면 첫 순서가 정해져요</p>
+        <p class="dir" id="oDir" hidden></p>
+      </div>
+      <button class="primary" id="oDraw">첫 순서 뽑기</button>
+    </div>
+    <div class="tool">
+      <h2>나눔 타이머</h2>
+      <div class="chips" id="tPresets" role="group" aria-label="시간 선택"></div>
+      <p class="clock" id="tClock" role="timer">1:00</p>
+      <div class="bar">
+        <button class="ghost" id="tReset">처음으로</button>
+        <button class="primary" id="tStart">시작</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="메뉴">
+  <div class="tabs-inner" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-target="v-q">나눔 질문</button>
+    <button class="tab" role="tab" aria-selected="false" data-target="v-b">밸런스</button>
+    <button class="tab" role="tab" aria-selected="false" data-target="v-c">초성 퀴즈</button>
+    <button class="tab" role="tab" aria-selected="false" data-target="v-t">진행 도구</button>
+  </div>
+</nav>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-bg" data-close></div>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">내 질문 추가</h2>
+    <label>주제<select id="newCat"></select></label>
+    <label>질문<textarea id="newText" rows="3" placeholder="예) 이번 주에 가장 많이 웃었던 순간은?"></textarea></label>
+    <button class="primary" id="addBtn">질문 추가</button>
+    <p class="msg" id="msg">추가한 질문은 지금 쓰는 기기의 브라우저에 저장돼요.</p>
+    <h3>추가한 질문</h3>
+    <ul class="mine" id="myList"></ul>
+    <button class="ghost" data-close>닫기</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   내용 수정은 여기서부터
+   ========================================================= */
+
+const Q_CATS = [
+  { id: 'light', name: '가볍게' },
+  { id: 'daily', name: '일상' },
+  { id: 'faith', name: '신앙' },
+  { id: 'word',  name: '말씀' },
+  { id: 'deep',  name: '조금 더 깊게' }
+];
+
+const QUESTIONS = {
+  light: [
+    '이번 주에 먹은 것 중 제일 맛있었던 건 뭐였어요?',
+    '요즘 휴대폰에서 제일 자주 여는 앱은?',
+    '오늘 여기 오기 직전에 뭐 하고 있었어요?',
+    '아침에 알람 몇 개 맞춰 두고 자요?',
+    '요즘 반복 재생 중인 노래 한 곡은?',
+    '어릴 때 장래희망은 뭐였어요?',
+    '갑자기 하루 휴가가 생기면 뭐 하고 싶어요?',
+    '최근에 산 물건 중 제일 만족스러운 건?',
+    '나만 아는 동네 맛집이나 산책길이 있나요?',
+    '이번 주 내 컨디션을 날씨로 말하면 어때요?',
+    '요즘 빠져 있는 소소한 취미가 있나요?',
+    '사진첩에서 가장 최근에 찍은 사진은 뭐예요? (보여줄 수 있는 만큼)'
+  ],
+  daily: [
+    '이번 주에 가장 뿌듯했던 순간은 언제였어요?',
+    '요즘 회사나 학교에서 제일 신경 쓰이는 일은?',
+    '하루 중 나에게 가장 편한 시간은 언제예요?',
+    '최근에 누군가에게 들은 말 중 기억에 남는 한마디는?',
+    '스트레스 받을 때 나만의 환기 방법이 있나요?',
+    '이번 달 안에 꼭 해내고 싶은 일 하나는?',
+    '고마웠는데 아직 표현 못 한 사람이 있나요?',
+    '최근에 새로 시작한 게 있다면?',
+    '이번 주에 가장 오래 대화한 사람은 누구예요?',
+    '요즘 나를 제일 바쁘게 만드는 건 뭐예요?',
+    '5년 전의 나에게 한마디 해준다면?',
+    '이번 주에 잘 쉬었다고 느낀 순간이 있었나요?'
+  ],
+  faith: [
+    '처음 교회에 오게 된 계기는 뭐였어요?',
+    '요즘 기도 제목 하나만 나눈다면?',
+    '좋아하는 찬양 한 곡과 그 이유는?',
+    '최근에 돌아보니 은혜였다 싶은 일이 있다면?',
+    '요즘 신앙생활에서 가장 어려운 부분은?',
+    '예배 중 가장 마음이 열리는 순간은 언제예요?',
+    '신앙의 롤모델로 삼고 싶은 사람이 있나요?',
+    '하나님께 요즘 제일 묻고 싶은 질문은?',
+    '믿음 때문에 선택이 달라졌던 경험이 있나요?',
+    '이번 주 일상에서 하나님이 떠오른 순간이 있었나요?',
+    '가장 기억에 남는 수련회나 예배가 있다면?',
+    '이 모임에서 함께 기대하고 싶은 게 있다면?'
+  ],
+  word: [
+    '제일 좋아하는 성경 구절과 그 이유는?',
+    '성경 속 장면 중 직접 가서 보고 싶은 장면은?',
+    '성경 인물 중 요즘 나와 닮았다고 느끼는 사람은?',
+    '성경 인물 한 명과 밥을 먹는다면 누구와, 뭘 물어보고 싶어요?',
+    '처음 읽었을 때 잘 이해가 안 됐던 말씀이 있나요?',
+    '힘들 때 떠올리게 되는 말씀이 있다면?',
+    '성경에서 가장 좋아하는 책은?',
+    '예수님의 비유 중 제일 마음에 드는 이야기는?',
+    '최근 읽은 말씀 중 마음에 걸린 구절이 있나요?',
+    '말씀대로 살아보려고 이번 주에 해본 작은 시도가 있나요?',
+    '성경 인물이 내 친구라면 누구랑 제일 잘 맞을 것 같아요?',
+    '한 구절만 평생 간직한다면 어떤 말씀을 고를래요?'
+  ],
+  deep: [
+    '요즘 마음을 제일 많이 차지하고 있는 고민은 뭐예요?',
+    '1년 뒤의 나는 어떤 모습이었으면 좋겠어요?',
+    '누군가에게 받은 위로 중 오래 기억나는 게 있다면?',
+    '쉽게 꺼내진 못했지만 기도 부탁하고 싶은 게 있나요?',
+    '요즘 나를 가장 살아 있게 하는 건 뭐예요?',
+    '내가 생각하는 잘 사는 삶은 어떤 모습이에요?',
+    '내려놓아야 한다고 느끼는데 잘 안 되는 게 있다면?',
+    '회복되었으면 하는 관계가 있나요?',
+    '나를 가장 잘 아는 사람은 나를 어떻게 설명할까요?',
+    '두려워서 미뤄두고 있는 결정이 있나요?',
+    '요즘 누군가에게 꼭 듣고 싶은 말이 있다면?',
+    '올해 하나님이 나에게 가르쳐주시는 한 가지는 뭘까요?'
+  ]
+};
+
+// 밸런스 게임: [왼쪽, 오른쪽]
+const BALANCE = [
+  ['새벽예배 매일 드리기', '금요철야 매주 드리기'],
+  ['설교 세 시간 듣기', '찬양 세 시간 부르기'],
+  ['요나처럼 물고기 뱃속에서 사흘', '다니엘처럼 사자굴에서 하룻밤'],
+  ['노아의 방주에서 동물 돌보기', '광야에서 40년 동안 만나 먹기'],
+  ['홍해가 갈라지는 장면 보기', '골리앗이 쓰러지는 장면 보기'],
+  ['오병이어 현장에서 음식 나르기', '가나 혼인잔치에서 물 떠 나르기'],
+  ['여름 수련회', '겨울 수련회'],
+  ['찬양팀에서 노래하기', '찬양팀에서 악기 연주하기'],
+  ['모임 끝나고 늘 가던 맛집', '매번 새로운 식당 도전'],
+  ['계획 꽉 채운 여행', '아무 계획 없는 여행'],
+  ['평생 여름만', '평생 겨울만'],
+  ['아침형 인간으로 살기', '저녁형 인간으로 살기'],
+  ['카톡 없이 한 달', '유튜브 없이 한 달'],
+  ['답장은 바로바로', '답장은 몰아서 한 번에'],
+  ['평생 한 가지 음식만 먹기', '매일 랜덤 메뉴 먹기'],
+  ['친구 많은 사람', '깊은 친구 한 명 있는 사람'],
+  ['내 속마음이 다 들리기', '다른 사람 속마음이 다 들리기'],
+  ['과거로 한 번 돌아가기', '미래를 한 번 보고 오기'],
+  ['모르는 사람만 있는 수련회 방', '코골이 심한 친구와 같은 방'],
+  ['GBS 리더 맡기', '계속 조원으로 참여하기']
+];
+
+// 초성 퀴즈: [정답, 힌트] — 초성은 자동으로 만들어져요
+const QUIZ = {
+  people: [
+    ['다윗', '물맷돌 하나로 거인을 쓰러뜨렸어요'],
+    ['모세', '홍해 앞에서 지팡이를 들었어요'],
+    ['아브라함', '믿음의 조상, 백 세에 아들을 얻었어요'],
+    ['베드로', '물 위를 걷다가 빠질 뻔했어요'],
+    ['바울', '다메섹 길에서 예수님을 만났어요'],
+    ['요셉', '채색옷을 입었고 애굽의 총리가 되었어요'],
+    ['다니엘', '사자굴에서 살아 나왔어요'],
+    ['삭개오', '예수님을 보려고 뽕나무에 올라갔어요'],
+    ['에스더', '민족을 위해 왕 앞에 나아간 왕비예요'],
+    ['여호수아', '여리고 성을 돌았어요'],
+    ['기드온', '삼백 명의 용사와 함께 싸웠어요'],
+    ['엘리야', '갈멜산에서 하늘의 불을 구했어요'],
+    ['요나', '물고기 뱃속에서 사흘을 보냈어요'],
+    ['노아', '방주를 만들었어요'],
+    ['사무엘', '어린 시절 성전에서 부르심을 들었어요'],
+    ['니고데모', '밤에 예수님을 찾아왔어요'],
+    ['느헤미야', '예루살렘 성벽을 다시 쌓았어요'],
+    ['솔로몬', '지혜의 왕, 성전을 지었어요'],
+    ['삼손', '머리카락에 힘의 비밀이 있었어요'],
+    ['한나', '간절한 기도로 아들을 얻었어요'],
+    ['도마', '못 자국을 봐야 믿겠다고 했어요'],
+    ['막달라 마리아', '부활하신 예수님을 처음 만났어요']
+  ],
+  words: [
+    ['오병이어', '떡 다섯 개와 물고기 두 마리'],
+    ['겟세마네', '십자가 전날 밤 예수님이 기도하신 동산'],
+    ['갈릴리', '예수님이 어부들을 제자로 부르신 호수'],
+    ['요한계시록', '성경의 마지막 책'],
+    ['창세기', '태초에 하나님이 천지를 창조하신 이야기'],
+    ['시편', '백오십 편의 노래와 기도'],
+    ['잠언', '지혜로운 말씀을 모은 책'],
+    ['산상수훈', '팔복이 나오는 예수님의 설교'],
+    ['선한 사마리아인', '강도 만난 사람을 도와준 이웃'],
+    ['탕자', '아버지 집으로 돌아온 둘째 아들'],
+    ['바벨탑', '하늘까지 닿으려던 탑'],
+    ['만나', '광야에서 하늘에서 내려온 양식'],
+    ['무지개', '홍수 후 하나님이 보여주신 약속의 표'],
+    ['십계명', '돌판에 새긴 열 가지 계명'],
+    ['베들레헴', '예수님이 태어나신 마을'],
+    ['엠마오', '부활하신 예수님과 함께 걸은 길']
+  ]
+};
+
+// 첫 순서 뽑기
+const ORDER = [
+  '생일이 가장 가까운 사람부터',
+  '오늘 가장 일찍 일어난 사람부터',
+  '여기서 집이 가장 먼 사람부터',
+  '휴대폰 배터리가 가장 많이 남은 사람부터',
+  '이름이 가나다순으로 가장 빠른 사람부터',
+  '가장 밝은 색 옷을 입은 사람부터',
+  '이 교회에 가장 최근에 온 사람부터',
+  '가장 최근에 여행 다녀온 사람부터',
+  '형제자매가 가장 많은 사람부터',
+  '오늘 커피를 가장 많이 마신 사람부터',
+  '가장 최근에 생일이 지난 사람부터',
+  '오늘 가장 늦게 도착한 사람부터',
+  '리더가 지목하는 사람부터',
+  '휴대폰 사진첩에 사진이 가장 많은 사람부터'
+];
+
+// 나눔 타이머 버튼 (분)
+const PRESETS = [1, 2, 3];
+
+/* =========================================================
+   여기부터는 동작 코드
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function flip(el, apply) {
+  if (reduce) { apply(); return; }
+  el.classList.remove('turn');
+  void el.offsetWidth;
+  el.classList.add('turn');
+  setTimeout(apply, 240);
+}
+function chips(box, items, cur, onPick) {
+  box.innerHTML = '';
+  items.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = c.name;
+    b.setAttribute('aria-pressed', String(c.id === cur));
+    b.onclick = () => onPick(c.id);
+    box.appendChild(b);
+  });
+}
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+};
+
+/* 탭 */
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== t.dataset.target; });
+    window.scrollTo(0, 0);
+  };
+});
+
+/* ---------- 나눔 질문 ---------- */
+const STORE_KEY = 'gbs-icebreak-custom';
+let custom = [];
+try { custom = JSON.parse(store.get(STORE_KEY) || '[]'); } catch (e) { custom = []; }
+if (!Array.isArray(custom)) custom = [];
+
+let qCur = 'all', used = new Set(), history = [], exhausted = false;
+const qName = id => (Q_CATS.find(c => c.id === id) || {}).name || '';
+
+function allQ() {
+  const list = [];
+  Q_CATS.forEach(c => (QUESTIONS[c.id] || []).forEach((t, i) => list.push({ id: c.id + '-' + i, cat: c.id, text: t })));
+  return list.concat(custom.filter(q => QUESTIONS[q.cat]));
+}
+const qPool = () => allQ().filter(q => (qCur === 'all' || q.cat === qCur) && !used.has(q.id));
+
+function qChips() {
+  chips($('qChips'), [{ id: 'all', name: '골고루' }].concat(Q_CATS), qCur, id => {
+    qCur = id; exhausted = false; qChips(); qCount();
+    $('qDraw').textContent = history.length ? '다음 질문' : '질문 뽑기';
+  });
+}
+const qCount = () => { $('qCount').textContent = '남은 질문 ' + qPool().length + '개'; };
+
+function qShow(q) {
+  flip($('qCard'), () => {
+    $('qCat').textContent = q.cat ? qName(q.cat) : '';
+    $('qText').textContent = q.text;
+    $('qText').classList.toggle('idle', !q.cat);
+    $('qNote').hidden = q.cat !== 'deep';
+  });
+}
+
+$('qDraw').onclick = () => {
+  if (exhausted) {
+    allQ().forEach(q => { if (qCur === 'all' || q.cat === qCur) used.delete(q.id); });
+    exhausted = false;
+  }
+  const pool = qPool();
+  if (!pool.length) {
+    exhausted = true;
+    qShow({ text: '이 주제의 질문을 모두 나눴어요' });
+    $('qDraw').textContent = '처음부터 다시 섞기';
+    return;
+  }
+  const q = pick(pool);
+  used.add(q.id);
+  history.push(q);
+  qShow(q);
+  qCount();
+  $('histN').textContent = history.length;
+  const li = document.createElement('li');
+  li.textContent = q.text;
+  $('histList').appendChild(li);
+  $('qDraw').textContent = '다음 질문';
+};
+
+/* 내 질문 */
+function renderMine() {
+  const ul = $('myList');
+  ul.innerHTML = '';
+  if (!custom.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = '아직 추가한 질문이 없어요. 우리 조에 맞는 질문을 넣어 보세요.';
+    ul.appendChild(li);
+    return;
+  }
+  custom.slice().reverse().forEach(q => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    const small = document.createElement('small');
+    small.textContent = qName(q.cat);
+    span.append(small, document.createTextNode(q.text));
+    const del = document.createElement('button');
+    del.textContent = '삭제';
+    del.onclick = () => {
+      custom = custom.filter(x => x.id !== q.id);
+      used.delete(q.id);
+      const ok = store.set(STORE_KEY, JSON.stringify(custom));
+      renderMine(); qCount();
+      $('msg').textContent = ok ? '질문을 삭제했어요.' : '삭제했지만 저장하지 못했어요.';
+    };
+    li.append(span, del);
+    ul.appendChild(li);
+  });
+}
+$('newCat').innerHTML = Q_CATS.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+$('addBtn').onclick = () => {
+  const text = $('newText').value.trim();
+  if (!text) { $('msg').textContent = '질문 내용을 입력해 주세요.'; return; }
+  custom.push({ id: 'my-' + Date.now(), cat: $('newCat').value, text });
+  $('newText').value = '';
+  const ok = store.set(STORE_KEY, JSON.stringify(custom));
+  renderMine(); qCount();
+  $('msg').textContent = ok ? '질문을 추가했어요.' : '질문을 추가했어요. 이 환경에서는 저장이 안 돼서 새로 열면 사라져요.';
+};
+const sheet = $('sheet');
+$('openSheet').onclick = () => { sheet.hidden = false; };
+sheet.querySelectorAll('[data-close]').forEach(el => { el.onclick = () => { sheet.hidden = true; }; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') sheet.hidden = true; });
+
+/* ---------- 밸런스 게임 ---------- */
+let bDeck = shuffle(BALANCE), bi = -1, votes = [0, 0];
+function bRender() {
+  $('bACount').textContent = votes[0];
+  $('bBCount').textContent = votes[1];
+  $('bA').classList.toggle('lead', votes[0] > votes[1]);
+  $('bB').classList.toggle('lead', votes[1] > votes[0]);
+}
+function bNext() {
+  bi++;
+  if (bi >= bDeck.length) { bDeck = shuffle(BALANCE); bi = 0; }
+  votes = [0, 0];
+  $('bAText').textContent = bDeck[bi][0];
+  $('bBText').textContent = bDeck[bi][1];
+  bRender();
+}
+function bVote(i, el) {
+  votes[i]++;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  bRender();
+}
+$('bA').onclick = () => bVote(0, $('bA'));
+$('bB').onclick = () => bVote(1, $('bB'));
+$('bReset').onclick = () => { votes = [0, 0]; bRender(); };
+$('bNext').onclick = bNext;
+
+/* ---------- 초성 퀴즈 ---------- */
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const initials = s => [...s].map(ch => {
+  const c = ch.charCodeAt(0);
+  return (c >= 0xAC00 && c <= 0xD7A3) ? CHO[Math.floor((c - 0xAC00) / 588)] : ch;
+}).join('');
+const C_CATS = [{ id: 'all', name: '골고루' }, { id: 'people', name: '성경 인물' }, { id: 'words', name: '성경 속 단어' }];
+let cCur = 'all', cDeck = [];
+
+function cBuild() {
+  const tag = id => QUIZ[id].map(x => ({ cat: id, answer: x[0], hint: x[1] }));
+  cDeck = shuffle(cCur === 'all' ? tag('people').concat(tag('words')) : tag(cCur));
+}
+function cNext() {
+  if (!cDeck.length) cBuild();
+  const item = cDeck.pop();
+  flip($('cCard'), () => {
+    $('cCat').textContent = item.cat === 'people' ? '성경 인물' : '성경 속 단어';
+    $('cInit').textContent = initials(item.answer);
+    $('cHint').textContent = item.hint;
+    $('cAns').textContent = item.answer;
+    $('cHint').hidden = true;
+    $('cAns').hidden = true;
+  });
+}
+function cChips() {
+  chips($('cChips'), C_CATS, cCur, id => { cCur = id; cChips(); cDeck = []; cNext(); });
+}
+$('cHintBtn').onclick = () => { $('cHint').hidden = false; };
+$('cAnsBtn').onclick = () => { $('cAns').hidden = false; };
+$('cNext').onclick = cNext;
+
+/* ---------- 첫 순서 뽑기 ---------- */
+let lastO = -1;
+$('oDraw').onclick = () => {
+  let i;
+  do { i = Math.floor(Math.random() * ORDER.length); } while (i === lastO && ORDER.length > 1);
+  lastO = i;
+  flip($('oSlip'), () => {
+    $('oText').textContent = ORDER[i];
+    $('oText').classList.remove('idle');
+    $('oDir').textContent = pick(['시계 방향으로 이어가요', '반시계 방향으로 이어가요']);
+    $('oDir').hidden = false;
+  });
+};
+
+/* ---------- 나눔 타이머 ---------- */
+let tTotal = PRESETS[0] * 60, tLeft = tTotal, tEnd = 0, tId = null, audio = null, wake = null;
+const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+const tRender = () => { $('tClock').textContent = fmt(tLeft); };
+
+function tPresets() {
+  chips($('tPresets'), PRESETS.map(m => ({ id: m, name: m + '분' })), tTotal / 60, m => {
+    tStop(); tTotal = m * 60; tLeft = tTotal;
+    $('tClock').classList.remove('done');
+    tRender(); tPresets();
+  });
+}
+function releaseWake() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+function tStop() { clearInterval(tId); tId = null; $('tStart').textContent = '시작'; releaseWake(); }
+function tPause() { clearInterval(tId); tId = null; $('tStart').textContent = '이어서'; releaseWake(); }
+function beep() {
+  if (!audio) return;
+  [0, 0.35].forEach(d => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = 880;
+    o.connect(g); g.connect(audio.destination);
+    const t = audio.currentTime + d;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.start(t); o.stop(t + 0.32);
+  });
+}
+function tick() {
+  tLeft = Math.max(0, Math.ceil((tEnd - Date.now()) / 1000));
+  tRender();
+  if (tLeft === 0) {
+    tStop();
+    $('tClock').classList.add('done');
+    beep();
+    try { if (navigator.vibrate) navigator.vibrate([200, 120, 200]); } catch (e) {}
+  }
+}
+$('tStart').onclick = () => {
+  if (tId) { tPause(); return; }
+  if (tLeft <= 0) tLeft = tTotal;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  } catch (e) {}
+  if (navigator.wakeLock) navigator.wakeLock.request('screen').then(w => { wake = w; }).catch(() => {});
+  $('tClock').classList.remove('done');
+  tEnd = Date.now() + tLeft * 1000;
+  tId = setInterval(tick, 250);
+  $('tStart').textContent = '잠깐 멈춤';
+};
+$('tReset').onclick = () => { tStop(); tLeft = tTotal; tRender(); $('tClock').classList.remove('done'); };
+
+/* 시작 */
+qChips(); qCount(); renderMine();
+bNext();
+cChips(); cNext();
+tPresets(); tRender();
+</script>
+</body>
+</html>
